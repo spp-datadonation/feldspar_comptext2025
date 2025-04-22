@@ -8,9 +8,9 @@ extraction_dict = {
         "extraction_function": ef.extract_watch_history,
         "patterns": ["Wiedergabeverlauf.json", "watch-history.json"],
         "title": {
-            "en": "How many videos have you watched per day?",
-            "de": "Wie viele Videos haben Sie pro Tag angesehen?",
-            "nl": "Hoeveel video's heb je per dag bekeken?",
+            "en": "Which videos have you watched on YouTube?",
+            "de": "Welche Videos haben Sie auf YouTube angesehen?",
+            "nl": "Welke video's heb je bekeken op YouTube?",
         },
     },
     "comments": {
@@ -35,9 +35,9 @@ extraction_dict = {
         "extraction_function": ef.extract_search_history,
         "patterns": ["Suchverlauf.json", "search-history.json"],
         "title": {
-            "en": "How many searches have you performed per day?",
-            "de": "Wie viele Suchen haben Sie pro Tag durchgeführt?",
-            "nl": "Hoeveel zoekopdrachten heb je per dag uitgevoerd?",
+            "en": "What have you searched for on YouTube?",
+            "de": "Wonach haben Sie auf YouTube gesucht?",
+            "nl": "Waar heb je naar gezocht op YouTube?",
         },
     },
 }

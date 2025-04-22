@@ -946,7 +946,7 @@ def extract_search_history(search_history_json, locale):
         if timestamp_key and "timestamp" in search["string_map_data"][timestamp_key]:
             timestamps.append(search["string_map_data"][timestamp_key]["timestamp"])
 
-    # Convert timestamps to dates
+        # Convert timestamps to dates
     dates = [epoch_to_date(t) for t in timestamps]
 
     # Create DataFrame

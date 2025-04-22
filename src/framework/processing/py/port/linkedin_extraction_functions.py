@@ -406,48 +406,97 @@ def extract_messages(messages_csv, locale):
 
 
 def extract_search_queries(search_queries_csv, locale):
-    """Extract LinkedIn search queries data aggregated by day"""
+    """Extract LinkedIn search queries data with actual search terms"""
 
     tl_date = translate("date", locale)
-    tl_count = translate(
+    tl_time = translate(
         {
-            "en": "Number of searches",
-            "de": "Anzahl der Suchanfragen",
-            "nl": "Aantal zoekopdrachten",
+            "en": "Time",
+            "de": "Zeit",
+            "nl": "Tijd",
+        },
+        locale,
+    )
+    tl_query = translate(
+        {
+            "en": "Search query",
+            "de": "Suchanfrage",
+            "nl": "Zoekopdracht",
         },
         locale,
     )
 
-    # Find the time/date column
+    # Find the time/date column and query column
     time_column = None
+    query_column = None
+
     for col in search_queries_csv.columns:
         if "Time" in col or "Zeit" in col or "Date" in col:
             time_column = col
-            break
+        elif "Query" in col or "Search" in col or "Suche" in col:
+            query_column = col
 
-    if not time_column:
+    # If we can't find the columns by name, try to guess by position
+    if not time_column and len(search_queries_csv.columns) >= 1:
+        time_column = search_queries_csv.columns[0]
+
+    if not query_column and len(search_queries_csv.columns) >= 2:
+        query_column = search_queries_csv.columns[1]
+
+    if not time_column or not query_column:
         return pd.DataFrame(
             {
                 tl_date: ["N/A"],
-                tl_count: [f"Total searches: {len(search_queries_csv)}"],
+                tl_time: ["N/A"],
+                tl_query: ["Required columns not found"],
             }
         )
 
     # Create a copy to avoid SettingWithCopyWarning
     processed_df = search_queries_csv.copy()
 
-    # Convert dates to a standard readable format
-    processed_df["formatted_date"] = pd.to_datetime(
-        processed_df[time_column], format="%Y/%m/%d %H:%M:%S UTC", errors="coerce"
-    ).dt.strftime("%Y-%m-%d")
+    try:
+        # Parse datetime
+        processed_df["datetime"] = pd.to_datetime(
+            processed_df[time_column], format="%Y/%m/%d %H:%M:%S UTC", errors="coerce"
+        )
 
-    # Count searches per day
-    daily_counts = (
-        processed_df.groupby("formatted_date").size().reset_index(name=tl_count)
-    )
-    daily_counts.rename(columns={"formatted_date": tl_date}, inplace=True)
+        # Extract date and time separately
+        processed_df["formatted_date"] = processed_df["datetime"].dt.strftime(
+            "%Y-%m-%d"
+        )
+        processed_df["formatted_time"] = processed_df["datetime"].dt.strftime(
+            "%H:%M:%S"
+        )
 
-    return daily_counts
+        # Create result DataFrame
+        result_df = pd.DataFrame(
+            {
+                tl_date: processed_df["formatted_date"],
+                tl_time: processed_df["formatted_time"],
+                tl_query: processed_df[query_column],
+            }
+        )
+
+        # Remove rows with NaT values
+        result_df = result_df.dropna(subset=[tl_date, tl_time])
+
+        # Sort by date and time
+        result_df = result_df.sort_values(
+            by=[tl_date, tl_time], ascending=[False, False]
+        )
+
+        return result_df
+
+    except Exception as e:
+        print(f"Error processing LinkedIn search queries: {e}")
+        return pd.DataFrame(
+            {
+                tl_date: ["N/A"],
+                tl_time: ["N/A"],
+                tl_query: [f"Error processing data: {str(e)}"],
+            }
+        )
 
 
 def extract_interests(ad_targeting_csv, locale):

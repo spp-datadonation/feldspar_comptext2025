@@ -60,35 +60,92 @@ def translate(value, locale, dummy_decider=None):
 
 
 def extract_watch_history(watch_history_json, locale):
-    """Extract YouTube watch history"""
+    """Extract YouTube watch history with date, time, title, channel, and URL"""
 
     tl_date = translate("date", locale)
-    tl_value = translate(
+    tl_time = translate(
         {
-            "en": "Number of videos watched",
-            "de": "Anzahl der gesehenen Videos",
-            "nl": "Aantal bekeken video's",
+            "en": "Time",
+            "de": "Zeit",
+            "nl": "Tijd",
+        },
+        locale,
+    )
+    tl_title = translate(
+        {
+            "en": "Video Title",
+            "de": "Video-Titel",
+            "nl": "Video Titel",
+        },
+        locale,
+    )
+    tl_channel = translate(
+        {
+            "en": "Channel",
+            "de": "Kanal",
+            "nl": "Kanaal",
+        },
+        locale,
+    )
+    tl_url = translate(
+        {
+            "en": "URL",
+            "de": "URL",
+            "nl": "URL",
         },
         locale,
     )
 
-    # Initialize list to store dates
-    dates = []
+    # Initialize list to store watch history entries
+    results = []
 
     # Process each entry in the watch history
     for entry in watch_history_json:
         if "time" in entry and "titleUrl" in entry:  # Make sure it's a video entry
-            # Extract date (YYYY-MM-DD) from ISO timestamp
-            date_str = entry["time"].split("T")[0]
-            dates.append(date_str)
+            # Extract date and time from ISO timestamp
+            datetime_str = entry["time"]
+            date_str = datetime_str.split("T")[0]
+            time_str = datetime_str.split("T")[1].split(".")[0]  # Extract HH:MM:SS
 
-    # Create DataFrame with dates
-    dates_df = pd.DataFrame(dates, columns=[tl_date])
+            # Get title (remove "Watched " prefix if present)
+            title = entry.get("title", "Unknown")
+            if title.startswith("Watched "):
+                title = title[8:]
 
-    # Aggregate by date to count videos watched per day
-    aggregated_df = dates_df.groupby(tl_date).size().reset_index(name=tl_value)
+            # Get URL
+            url = entry.get("titleUrl", "Unknown")
 
-    return aggregated_df
+            # Get channel name if available
+            channel = "Unknown"
+            if "subtitles" in entry and len(entry["subtitles"]) > 0:
+                channel = entry["subtitles"][0].get("name", "Unknown")
+
+            results.append(
+                {
+                    "date": date_str,
+                    "time": time_str,
+                    "title": title,
+                    "channel": channel,
+                    "url": url,
+                }
+            )
+
+    if not results:
+        return pd.DataFrame(
+            {
+                tl_date: ["N/A"],
+                tl_time: ["N/A"],
+                tl_title: ["No watch history found"],
+                tl_channel: ["N/A"],
+                tl_url: ["N/A"],
+            }
+        )
+
+    # Create DataFrame with all the information
+    watch_df = pd.DataFrame(results)
+    watch_df.columns = [tl_date, tl_time, tl_title, tl_channel, tl_url]
+
+    return watch_df
 
 
 def extract_comments(comments_csv, locale):
@@ -166,40 +223,48 @@ def extract_subscriptions(subscriptions_csv, locale):
 
 
 def extract_search_history(search_history_json, locale):
-    """Extract YouTube search history and count per day"""
+    """Extract YouTube search history with search terms"""
 
     tl_date = translate("date", locale)
     tl_value = translate(
         {
-            "en": "Number of searches",
-            "de": "Anzahl der Suchen",
-            "nl": "Aantal zoekopdrachten",
+            "en": "Search term",
+            "de": "Suchbegriff",
+            "nl": "Zoekterm",
         },
         locale,
     )
 
-    # Initialize list to store dates
-    dates = []
+    # Initialize lists to store results
+    results = []
 
     # Process each entry in the search history
     for entry in search_history_json:
         if "time" in entry:  # Make sure it has a timestamp
             # Extract date (YYYY-MM-DD) from ISO timestamp
             date_str = entry["time"].split("T")[0]
-            dates.append(date_str)
 
-    if not dates:
+            # Extract search term
+            search_term = "Unknown"
+            if "title" in entry:
+                title = entry["title"]
+                if title.startswith("Searched for "):
+                    search_term = title[13:]
+                else:
+                    search_term = title
+
+            results.append({"date": date_str, "search_term": search_term})
+
+    if not results:
         return pd.DataFrame(
             {
                 tl_date: ["N/A"],
-                tl_value: ["No valid search dates found"],
+                tl_value: ["No valid search terms found"],
             }
         )
 
-    # Create DataFrame with dates
-    dates_df = pd.DataFrame(dates, columns=[tl_date])
+    # Create DataFrame with search terms
+    search_df = pd.DataFrame(results)
+    search_df.columns = [tl_date, tl_value]
 
-    # Aggregate by date to count searches per day
-    aggregated_df = dates_df.groupby(tl_date).size().reset_index(name=tl_value)
-
-    return aggregated_df
+    return search_df
